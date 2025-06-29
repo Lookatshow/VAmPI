@@ -1,0 +1,63 @@
+name: DevSecOps Security Scan
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build VAmPI
+        run: docker-compose up -d
+
+      - name: Wait for service to be ready
+        run: sleep 10
+
+      - name: Run Trivy on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'vampi:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/default"
+          generateSarif: true
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Run ZAP baseline scan
+        run: |
+          docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy zap-baseline.py \
+            -t http://localhost:5000 \
+            -r zap-report.html \
+            -x zap-report.xml \
+            -J zap-report.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            zap-report.*
+            trivy-report.*

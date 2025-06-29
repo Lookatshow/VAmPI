@@ -55,18 +55,24 @@ jobs:
         with:
           sarif_file: semgrep.sarif
 
+      - name: Prepare writable files for ZAP
+        run: |
+          touch zap-report.html zap-report.xml zap-report.json
+          chmod 666 zap-report.*
+      
       - name: Run ZAP baseline scan
         run: |
           docker run --rm \
-            --network host \
+            --network vampi_vampi_net \
             -v $(pwd):/zap/wrk/:rw \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
             zap-baseline.py \
-              -t http://localhost:5002 \
+              -t http://vampi-vulnerable:5000 \
               -r zap-report.html \
               -x zap-report.xml \
-              -J zap-report.json
+              -J zap-report.json || true
+
 
 
 

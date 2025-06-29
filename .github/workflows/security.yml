@@ -8,50 +8,46 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
 
-      - name: Set up QEMU (optional, for multi-arch builds)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build VAmPI Docker image
-        run: docker build -t vampi:latest .
-
-      - name: Run VAmPI service
+      - name: Build VAmPI
         run: docker compose up -d
-        continue-on-error: true  # если docker compose не настроен, не упадёт
 
       - name: Wait for service to be ready
-        run: sleep 15
+        run: sleep 10
 
-      - name: Run Trivy on image (no fail on findings)
+      - name: Run Trivy on image
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: image
           image-ref: 'vampi:latest'
           format: 'sarif'
           output: 'trivy.sarif'
+          exit-code: '0'  # не прерываем pipeline
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
-        continue-on-error: true
-
 
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy.sarif
 
-      - name: Run Semgrep (no fail on findings)
+      - name: Run Semgrep
+        continue-on-error: true
         uses: returntocorp/semgrep-action@v1
         with:
-          config: p/default
-          sarif: semgrep.sarif
-        continue-on-error: true
+          config: "p/default"
+          generateSarif: true
 
       - name: Upload Semgrep SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -59,26 +55,17 @@ jobs:
           sarif_file: semgrep.sarif
 
       - name: Run ZAP baseline scan
+        continue-on-error: true
         run: |
           docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy zap-baseline.py \
             -t http://localhost:5000 \
             -r zap-report.html \
             -x zap-report.xml \
-            -J zap-report.json || true
-        continue-on-error: true
+            -J zap-report.json
 
-      - name: Upload ZAP reports
+      - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: zap-reports
-          path: |
-            zap-report.html
-            zap-report.xml
-            zap-report.json
-
-      - name: Shut down VAmPI
-        run: docker compose down
-        if: always()  # чтобы выполнялся даже при ошибках
-
+          name: security-reports
           path: |
             zap-report.*

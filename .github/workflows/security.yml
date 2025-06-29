@@ -55,13 +55,19 @@ jobs:
         with:
           sarif_file: semgrep.sarif
 
-      - name: Run ZAP Baseline Scan
+      - name: Run ZAP baseline scan
         run: |
-          docker run -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy zap-baseline.py \
-            -t http://localhost:5002 \
-            -r zap-report.html \
-            -x zap-report.xml \
-            -J zap-report.json
+          docker run --rm \
+            --network host \
+            -v $(pwd):/zap/wrk/:rw \
+            -w /zap/wrk \
+            ghcr.io/zaproxy/zaproxy \
+            zap-baseline.py \
+              -t http://localhost:5002 \
+              -r zap-report.html \
+              -x zap-report.xml \
+              -J zap-report.json
+
 
 
       - name: Upload reports

@@ -55,10 +55,11 @@ jobs:
         with:
           sarif_file: semgrep.sarif
 
-      - name: Prepare writable files for ZAP
+      - name: Prepare writable ZAP workspace
         run: |
-          touch zap-report.html zap-report.xml zap-report.json
-          chmod 666 zap-report.*
+          mkdir -p zap-output
+          touch zap-output/zap.yaml zap-output/zap-report.html zap-output/zap-report.xml zap-output/zap-report.json
+          chmod 666 zap-output/*
       
       - name: Run ZAP baseline scan
         run: |

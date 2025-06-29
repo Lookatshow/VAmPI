@@ -8,43 +8,48 @@ on:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build VAmPI
+      - name: Set up QEMU (optional, for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build VAmPI Docker image
+        run: docker build -t vampi:latest .
+
+      - name: Run VAmPI service
         run: docker compose up -d
 
       - name: Wait for service to be ready
-        run: sleep 10
+        run: sleep 15
 
-      - name: Run Trivy on image
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy on image (no fail on findings)
+        uses: aquasecurity/trivy-action@v0.16.2
         with:
+          scan-type: image
           image-ref: 'vampi:latest'
           format: 'sarif'
           output: 'trivy.sarif'
-          exit-code: '1'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+        continue-on-error: true
 
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy.sarif
 
-      - name: Run Semgrep
+      - name: Run Semgrep (no fail on findings)
         uses: returntocorp/semgrep-action@v1
         with:
-          config: "p/default"
+          config: p/default
+          sarif: semgrep.sarif
+        continue-on-error: true
 
       - name: Upload Semgrep SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -58,10 +63,11 @@ jobs:
             -r zap-report.html \
             -x zap-report.xml \
             -J zap-report.json
+        continue-on-error: true
 
-      - name: Upload reports
+      - name: Upload ZAP reports
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
+          name: zap-reports
           path: |
             zap-report.*

@@ -41,12 +41,13 @@ jobs:
         with:
           sarif_file: trivy.sarif
 
-      - name: Run Semgrep
+      - name: Run Semgrep manually
         continue-on-error: true
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: "p/default"
-          generateSarif: true
+        run: |
+          docker run --rm \
+            -v $(pwd):/src \
+            returntocorp/semgrep \
+            semgrep ci --config p/default --sarif --output semgrep.sarif
 
       - name: Upload Semgrep SARIF
         if: always()

@@ -63,17 +63,15 @@ jobs:
       - name: Run ZAP baseline scan
         run: |
           docker run --rm \
-            --network vampi_vampi_net \
+            --network host \
             -v $(pwd):/zap/wrk/:rw \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy \
             zap-baseline.py \
-              -t http://vampi-vulnerable:5000 \
+              -t http://localhost:5002 \
               -r zap-report.html \
               -x zap-report.xml \
               -J zap-report.json || true
-
-
 
 
       - name: Upload reports

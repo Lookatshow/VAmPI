@@ -23,12 +23,8 @@ jobs:
       - name: Build VAmPI
         run: docker compose up -d
 
-
       - name: Wait for service to be ready
         run: sleep 10
-
-      - name: Build Docker image for Trivy
-        run: docker build -t vampi:latest .
 
       - name: Run Trivy on image
         uses: aquasecurity/trivy-action@master
@@ -36,12 +32,12 @@ jobs:
           image-ref: 'vampi:latest'
           format: 'sarif'
           output: 'trivy.sarif'
-          exit-code: '0'
+          exit-code: '1'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
-      
-      - name: Upload Trivy report to GitHub
-        uses: github/codeql-action/upload-sarif@v2
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy.sarif
 
@@ -49,10 +45,9 @@ jobs:
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/default"
-          generateSarif: true
 
-      - name: Upload Semgrep results
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
 
@@ -70,4 +65,3 @@ jobs:
           name: security-reports
           path: |
             zap-report.*
-            trivy-report.*

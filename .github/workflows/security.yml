@@ -79,4 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
-          path: zap-output/zap-report.*
+          path: |
+            zap-output/zap-report.*
+            trivy.sarif
+            semgrep.sarif
